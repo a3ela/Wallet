@@ -7,25 +7,17 @@ import {
 import { useAuth, useSignUp } from "@clerk/expo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View, Image, TextInput, Pressable } from "react-native";
 
-export default function SignUpScreen() {
+const SignUp = () => {
   const { signUp, errors, fetchStatus } = useSignUp();
   const { isSignedIn } = useAuth();
   const router = useRouter();
 
-  const isLoading = fetchStatus === "fetching";
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
 
   const {
     control,
@@ -44,8 +36,8 @@ export default function SignUpScreen() {
 
   const {
     control: codeControl,
-    handleSubmit: handleCodeSubmit,
-    formState: { errors: codeErrors },
+    handleSubmit: codeHandleSubmit,
+    formState: { errors: codeFormErrors },
   } = useForm<CodeFormSchema>({
     resolver: zodResolver(codeSchema),
     mode: "onBlur",
@@ -54,40 +46,68 @@ export default function SignUpScreen() {
     },
   });
 
-  const onSignUpPress = async (data: SignUpFormSchema) => {
-    const { error } = await signUp.password({
-      emailAddress: data.email,
-      password: data.password,
-      firstName: data.firstName,
-      lastName: data.lastName,
-    });
-
-    if (error) {
-      console.error(JSON.stringify(error, null, 2));
-    }
-
-    if (!error) await signUp.verifications.sendEmailCode();
-  };
-
-  const onVerifyPress = async (data: CodeFormSchema) => {};
-
-  if (
-    signUp.status === "missing_requirements" &&
-    signUp.unverifiedFields.includes("email_address") &&
-    signUp.missingFields.length === 0
-  ) {
-    return (
-      <KeyboardAvoidingView
+  return (
+     <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1 bg-brand-body"
       >
-        <View className="flex-1 justify-center px-6 -mt-16">
-          <Image
-            source={require("@/assets/images/logo.png")}
-            className="w-36 h-20 mb-6"
-            resizeMode="contain"
-          />
-        </View>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View className="flex-1 justify-center px-6 -mt-16">
+            <View className="items-center mb-8">
+              <Image
+                source={require("@/assets/images/logo.png")}
+                className="w-36 h-20 mb-6"
+                resizeMode="contain"
+              />
+              <Text className="text-3xl font-bold text-[#1A1D26] mb-2">
+                Verify Your Email
+              </Text>
+              <Text className="text-base text-[#666] text-center leading-6">
+                We sent a verification code to your email address. Please enter
+                it below.
+              </Text>
+            </View>
+
+            <View className="gap-5">
+              <View>
+                <Text className="text-sm font-semibold text-[#1A1D26] mb-2">
+                  Verification Code
+                </Text>
+                <Controller
+                  control={codeControl}
+                  name="code"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      className="h-14 px-4 border border-[#D8D9DE] rounded-xl bg-white text-[#1A1D26] text-center text-lg tracking-widest"
+                      placeholder="123456"
+                      placeholderTextColor="#8A8D96"
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="number-pad"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  )}
+                />
+                {codeFormErrors.code && (
+                  <Text className="text-xs text-red-500 mt-1">
+                    {codeFormErrors.code.message}
+                  </Text>
+                )}
+                {errors?.fields?.code && (
+                  <Text className="text-xs text-red-500 mt-1">
+                    {errors.fields.code.message}
+                  </Text>
+                )}
+              </View>
+
+             
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     );
   }
@@ -106,7 +126,6 @@ export default function SignUpScreen() {
         }}
       >
         <View className="flex-1 px-6 pt-16">
-          {/* Header */}
           <View className="items-center mb-10">
             <Image
               source={require("@/assets/images/logo.png")}
@@ -257,7 +276,7 @@ export default function SignUpScreen() {
               {isLoading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text className="text-white font-semibold text-base bg-primary">
+                <Text className="text-white font-semibold text-base">
                   Sign Up
                 </Text>
               )}
@@ -279,4 +298,6 @@ export default function SignUpScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
+
+export default SignUp;
