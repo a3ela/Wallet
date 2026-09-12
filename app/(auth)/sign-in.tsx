@@ -2,6 +2,7 @@ import { SignInFormSchema, signInSchema } from "@/lib/schemas/auth";
 import { useSignIn } from "@clerk/expo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "expo-router";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -33,6 +34,12 @@ const SignIn = () => {
     },
   });
 
+  useEffect(() => {
+    if (signIn.status === "complete") {
+      signIn.finalize();
+    }
+  }, [signIn, signIn.status]);
+
   const onSignInPress = async (values: SignInFormSchema) => {
     const { error } = await signIn.password({
       identifier: values.email,
@@ -41,11 +48,6 @@ const SignIn = () => {
 
     if (error) {
       console.error(JSON.stringify(error, null, 2));
-      return;
-    }
-
-    if (signIn.status === "complete") {
-      await signIn.finalize();
     }
   };
 
