@@ -27,7 +27,7 @@ export const useUserSync = () => {
         }
 
         if (existingUser) {
-          setCurrency(existingUser.currency ?? "BIRR");
+          setCurrency(existingUser.currency ?? "ETB");
           setNeedsOnboarding(!existingUser.currency);
           return;
         }
@@ -43,7 +43,7 @@ export const useUserSync = () => {
               name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
               image_url: user.imageUrl,
             },
-            { onConflict: "clerk_id", ignoreDuplicates: false }
+            { onConflict: "clerk_id", ignoreDuplicates: false },
           )
           .select("currency")
           .single();
@@ -54,12 +54,18 @@ export const useUserSync = () => {
           return;
         }
 
-        setCurrency(newUser?.currency ?? "BIRR");
+        setCurrency(newUser?.currency ?? "ETB");
         setNeedsOnboarding(!newUser?.currency);
 
         const { error: accountError } = await authSupabase
           .from("accounts")
-          .insert({ user_id: user.id, name: "Cash", type: "CASH", balance: 0, is_default: true });
+          .insert({
+            user_id: user.id,
+            name: "Cash",
+            type: "CASH",
+            balance: 0,
+            is_default: true,
+          });
 
         if (accountError) {
           console.error("Error creating default account:", accountError);

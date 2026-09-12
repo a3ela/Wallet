@@ -8,7 +8,7 @@ interface UserStore {
 }
 
 export const useUserStore = create<UserStore>((set) => ({
-  currency: "BIRR",
+  currency: "ETB",
   setCurrency: (value: string) => set({ currency: value }),
   needsOnboarding: null,
   setNeedsOnboarding: (value: boolean | null) =>
