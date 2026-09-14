@@ -1,8 +1,9 @@
+import { queryClient } from "@/lib/query/client";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Slot } from "expo-router";
 import "../global.css";
-
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
@@ -11,8 +12,10 @@ if (!publishableKey) {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <Slot />
-    </ClerkProvider>
+    <QueryClientProvider client={queryClient}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <Slot />
+      </ClerkProvider>
+    </QueryClientProvider>
   );
 }
