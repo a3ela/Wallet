@@ -7,12 +7,12 @@ import {
 import { useSignIn } from "@clerk/expo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -21,8 +21,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 
 export default function SignIn() {
   const { signIn, errors, fetchStatus } = useSignIn();
@@ -31,10 +32,38 @@ export default function SignIn() {
 
   const [email, setEmail] = useState("");
   const inputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const scrollToOffset = (y: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y, animated: true });
+    }, 120);
+  };
 
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors: formErrors },
   } = useForm<signInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -48,6 +77,7 @@ export default function SignIn() {
   const {
     control: codeControl,
     handleSubmit: codeHandleSubmit,
+    setError: setCodeError,
     formState: { errors: codeErrors },
   } = useForm<CodeFormSchema>({
     resolver: zodResolver(codeSchema),
@@ -77,6 +107,17 @@ export default function SignIn() {
 
     if (error) {
       console.error(JSON.stringify(error, null, 2));
+      const clerkError = (error as any)?.errors?.[0];
+      const paramName = clerkError?.meta?.paramName;
+      const message =
+        clerkError?.longMessage || clerkError?.message || "Sign in failed";
+      if (paramName === "password") {
+        setError("password", { message });
+      } else if (paramName === "identifier" || paramName === "email") {
+        setError("email", { message });
+      } else {
+        setError("password", { message });
+      }
       return;
     }
 
@@ -94,6 +135,13 @@ export default function SignIn() {
 
     if (error) {
       console.error(JSON.stringify(error, null, 2));
+      const clerkError = (error as any)?.errors?.[0];
+      setCodeError("code", {
+        message:
+          clerkError?.longMessage ||
+          clerkError?.message ||
+          "Invalid verification code",
+      });
       return;
     }
 
@@ -112,131 +160,136 @@ export default function SignIn() {
 
   if (needsEmailCode) {
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 bg-(--background)"
-      >
-        <View className="flex-1 justify-center px-6">
-          <View className="items-center mb-8">
-            <Image
-              source={require("../../../assets/images/icon.png")}
-              resizeMode="contain"
-              className="w-20 h-20 mb-4"
-            />
-            <Text className="text-2xl font-bold text-(--foreground) mb-1">
-              Verify Email
-            </Text>
-            <Text className="text-sm text-brand-text-muted/80 text-center px-4">
-              We sent a 8-digit verification code to{" "}
-              <Text className="font-semibold text-(--foreground)">
-                {email || "your email"}
-              </Text>
-            </Text>
-          </View>
-
+      <SafeAreaView className="flex-1 bg-(--background)">
+        <ScrollView
+          contentContainerClassName="flex-grow justify-center px-6 py-8"
+          automaticallyAdjustKeyboardInsets={true}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           <View className="w-full">
-            <Controller
-              control={codeControl}
-              name="code"
-              render={({ field: { onChange, onBlur, value = "" } }) => (
-                <View className="relative w-full items-center">
-                  <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => inputRef.current?.focus()}
-                    className="flex-row justify-between w-full"
-                  >
-                    {Array.from({ length: CODE_LENGTH }).map((_, index) => {
-                      const char = value[index];
-                      const isFocused = value.length === index;
-                      const hasError = !!codeErrors.code;
+            <View className="items-center mb-8">
+              <Image
+                source={require("../../../assets/images/icon.png")}
+                resizeMode="contain"
+                className="w-20 h-20 mb-4"
+              />
+              <Text className="text-2xl font-bold text-(--foreground) mb-1">
+                Verify Email
+              </Text>
+              <Text className="text-sm text-brand-text-muted/80 text-center px-4">
+                We sent a 6-digit verification code to{" "}
+                <Text className="font-semibold text-(--foreground)">
+                  {email || "your email"}
+                </Text>
+              </Text>
+            </View>
 
-                      let borderColor = "border-brand-text-muted/20";
-                      if (hasError) {
-                        borderColor = "border-red-500";
-                      } else if (isFocused) {
-                        borderColor = "border-brand-primary border-2";
-                      } else if (char) {
-                        borderColor = "border-brand-text/60";
+            <View className="w-full">
+              <Controller
+                control={codeControl}
+                name="code"
+                render={({ field: { onChange, onBlur, value = "" } }) => (
+                  <View className="relative w-full items-center">
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      onPress={() => inputRef.current?.focus()}
+                      className="flex-row justify-between w-full"
+                    >
+                      {Array.from({ length: CODE_LENGTH }).map((_, index) => {
+                        const char = value[index];
+                        const isFocused = value.length === index;
+                        const hasError = !!codeErrors.code;
+
+                        let borderColor = "border-brand-text-muted/20";
+                        if (hasError) {
+                          borderColor = "border-red-500";
+                        } else if (isFocused) {
+                          borderColor = "border-brand-primary border-2";
+                        } else if (char) {
+                          borderColor = "border-brand-text/60";
+                        }
+
+                        return (
+                          <View
+                            key={index}
+                            className={`w-12 h-14 rounded-xl border bg-(--input) justify-center items-center shadow-sm ${borderColor}`}
+                          >
+                            <Text className="text-xl font-bold text-(--foreground)">
+                              {char || ""}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </TouchableOpacity>
+                    <TextInput
+                      ref={inputRef}
+                      value={value}
+                      onChangeText={(text) =>
+                        onChange(
+                          text.replace(/[^0-9]/g, "").slice(0, CODE_LENGTH),
+                        )
                       }
+                      onBlur={onBlur}
+                      keyboardType="number-pad"
+                      maxLength={CODE_LENGTH}
+                      textContentType="oneTimeCode"
+                      autoFocus
+                      className="absolute opacity-0 w-full h-full"
+                    />
+                  </View>
+                )}
+              />
 
-                      return (
-                        <View
-                          key={index}
-                          className={`w-12 h-14 rounded-xl border bg-(--input) justify-center items-center shadow-sm ${borderColor}`}
-                        >
-                          <Text className="text-xl font-bold text-(--foreground)">
-                            {char || ""}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </TouchableOpacity>
-                  <TextInput
-                    ref={inputRef}
-                    value={value}
-                    onChangeText={(text) =>
-                      onChange(
-                        text.replace(/[^0-9]/g, "").slice(0, CODE_LENGTH),
-                      )
-                    }
-                    onBlur={onBlur}
-                    keyboardType="number-pad"
-                    maxLength={CODE_LENGTH}
-                    textContentType="oneTimeCode"
-                    autoFocus
-                    className="absolute opacity-0 w-full h-full"
-                  />
-                </View>
-              )}
-            />
-
-            {codeErrors.code && (
-              <Text className="text-xs text-red-500 mt-2 text-center font-medium">
-                {codeErrors.code.message}
-              </Text>
-            )}
-
-            <TouchableOpacity
-              onPress={codeHandleSubmit(onVerifyPress)}
-              disabled={isLoading}
-              className="mt-8 bg-brand-primary h-14 rounded-xl justify-center items-center shadow-md active:opacity-80"
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text className="text-white text-base font-semibold">
-                  Verify Code
+              {codeErrors.code && (
+                <Text className="text-xs text-red-500 mt-2 text-center font-medium">
+                  {codeErrors.code.message}
                 </Text>
               )}
-            </TouchableOpacity>
 
-            <View className="flex-row justify-center items-center mt-6">
-              <Text className="text-sm text-brand-text-muted">
-                Didn't receive code?{" "}
-              </Text>
-              <Pressable onPress={() => signIn.emailCode.sendCode()}>
-                <Text className="text-sm font-semibold text-brand-primary">
-                  Resend
+              <TouchableOpacity
+                onPress={codeHandleSubmit(onVerifyPress)}
+                disabled={isLoading}
+                className="mt-8 bg-brand-primary h-14 rounded-xl justify-center items-center shadow-md active:opacity-80"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text className="text-white text-base font-semibold">
+                    Verify Code
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View className="flex-row justify-center items-center mt-6">
+                <Text className="text-sm text-brand-text-muted">
+                  Didn't receive code?{" "}
                 </Text>
-              </Pressable>
+                <Pressable onPress={() => signIn.emailCode.sendCode()}>
+                  <Text className="text-sm font-semibold text-brand-primary">
+                    Resend
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-(--background)"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <SafeAreaView className="flex-1 bg-(--background)">
       <ScrollView
-        contentContainerClassName="flex-grow px-6 py-12"
+        ref={scrollViewRef}
+        contentContainerClassName="flex-grow justify-center px-6 py-8"
+        automaticallyAdjustKeyboardInsets={true}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 justify-center">
+        <View className="w-full">
           <View className="items-center mb-8">
             <Image
               source={require("../../../assets/images/icon.png")}
@@ -270,6 +323,7 @@ export default function SignIn() {
                     placeholderTextColor="#94A3B8"
                     onChangeText={onChange}
                     onBlur={onBlur}
+                    onFocus={() => scrollToOffset(60)}
                     value={value}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -304,6 +358,9 @@ export default function SignIn() {
                     placeholderTextColor="#94A3B8"
                     onChangeText={onChange}
                     onBlur={onBlur}
+                    onFocus={() =>
+                      scrollToOffset(Platform.OS === "android" ? 220 : 180)
+                    }
                     value={value}
                     secureTextEntry
                     autoCapitalize="none"
@@ -348,8 +405,11 @@ export default function SignIn() {
               <Text className="font-semibold text-brand-primary">Sign up</Text>
             </Pressable>
           </View>
+
+          {/* Bottom spacer so inputs can scroll well above the keyboard */}
+          <View style={{ height: isKeyboardVisible ? 220 : 20 }} />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
