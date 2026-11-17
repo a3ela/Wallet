@@ -1,19 +1,20 @@
-import { ThemeProvider } from "@/theme/theme-provider";
-import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/expo";
+import { useUserSync } from '@/hook/useUserSync';
+import { useUserStore } from '@/store/userStore';
+import { ThemeProvider } from '@/theme/theme-provider';
+import { ClerkLoaded, ClerkProvider, useAuth } from '@clerk/expo';
 import {
   Inter_300Light,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
-} from "@expo-google-fonts/inter";
-import { useFonts } from "expo-font";
-import { Slot, useRouter, useSegments } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { useUserSync } from "@/hook/useUserSync";
-import "../global.css";
+} from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import '../global.css';
 
 const CLERK_PUBLISHABLE_KEY =
   process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ||
@@ -43,20 +44,29 @@ function InitialLayout() {
   const segments = useSegments();
   const router = useRouter();
 
+  const needsOnboarding = useUserStore((state) => state.needsOnboarding);
+
   useUserSync();
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup = segments[0] === '(auth)';
+    const Onboarding = segments[1] === 'onboarding';
 
-    if (isSignedIn && inAuthGroup) {
-      router.replace("/(root)/(tabs)");
-    } else if (!isSignedIn && !inAuthGroup) {
-      router.replace("/(auth)/sign-in");
+    if (!isSignedIn) {
+      if (!inAuthGroup) {
+        router.replace('/(auth)/sign-in');
+      }
+      return;
     }
-  }, [isSignedIn, isLoaded, segments]);
 
+    if (needsOnboarding && !Onboarding) {
+      router.replace('/(root)/onboarding');
+    } else if (!needsOnboarding && (inAuthGroup || Onboarding)) {
+      router.replace('/(root)/(tabs)');
+    }
+  }, [isSignedIn, isLoaded, segments, needsOnboarding]);
   return <Slot />;
 }
 
@@ -83,7 +93,7 @@ export default function RootLayout() {
 
   if (fontError) {
     console.warn(
-      "[fonts] Failed to load Inter — falling back to system fonts:",
+      '[fonts] Failed to load Inter — falling back to system fonts:',
       fontError,
     );
   }

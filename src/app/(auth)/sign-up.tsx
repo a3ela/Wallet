@@ -181,7 +181,7 @@ export default function SignUp() {
           <View className="w-full">
             <View className="items-center mb-8">
               <Image
-                source={require("../../../assets/images/icon.png")}
+                source={require("../../../assets/images/confirmation.png")}
                 resizeMode="contain"
                 className="w-20 h-20 mb-4"
               />

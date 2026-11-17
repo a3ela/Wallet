@@ -24,6 +24,8 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.117.2",
     "clerk": "^3.3.0",
+    "currency-codes": "^2.2.0",
+    "currency-symbol-map": "^5.1.0",
     "expo": "~57.0.25",
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
